@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="fa">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>node-ops-monitor — Interactive Terminal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0b0e14;
+      --card:rgba(255,255,255,0.03);
+      --accent1:#6d3df5;
+      --accent2:#3dbdf5;
+      --muted:#9aa0a6;
+      --mono: 'JetBrains Mono', monospace;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#05060a 0%,#0b0e14 100%);color:#dfefff;font-family:Inter,Arial,system-ui}
+    .wrap{max-width:1100px;margin:20px auto;padding:20px}
+    .grid{display:grid;grid-template-columns:1fr 380px;gap:18px;align-items:start}
+    .card{background:var(--card);padding:20px;border-radius:14px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 6px 30px rgba(0,0,0,0.6)}
+    .profile{ text-align:center }
+    .pfp{ width:120px;height:120px;border-radius:50%;object-fit:cover;border:3px solid rgba(109,61,245,0.12);box-shadow:0 8px 30px rgba(61,189,245,0.06) }
+    h1{font-size:18px;margin:0;color:var(--accent1)}
+    .muted{color:var(--muted);font-size:13px}
+    .nodes{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+    .node{display:flex;justify-content:space-between;padding:10px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));border:1px solid rgba(255,255,255,0.02);font-size:14px}
+    .status-dot{width:10px;height:10px;border-radius:50%;margin-left:10px;box-shadow:0 0 6px rgba(0,0,0,0.6)}
+    .s-online{background:#4ce08a}
+    .s-running{background:#ffd24d}
+    .s-standby{background:#9aa0a6}
+    .s-sync{background:#3dbdf5}
+    /* SYSTEM LOAD */
+    .meter{background:rgba(255,255,255,0.03);height:8px;border-radius:6px;overflow:hidden}
+    .meter > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent1),var(--accent2));width:20%}
+    /* TERMINAL / LOGS */
+    .terminal-wrap{display:flex;flex-direction:column;gap:12px}
+    .terminal{background:#02040a;padding:12px;border-radius:8px;font-family:var(--mono);color:#8ff0ff;min-height:220px;max-height:340px;overflow:auto;border:1px solid rgba(255,255,255,0.02)}
+    .log{white-space:pre-wrap;font-size:13px;line-height:1.5}
+    .input-row{display:flex;gap:8px;margin-top:8px;align-items:center}
+    .cmd-input{flex:1;padding:10px;border-radius:8px;background:#071018;border:1px solid rgba(255,255,255,0.03);color:#e6f9ff;font-family:var(--mono);outline:none}
+    .cmd-btn{background:linear-gradient(90deg,var(--accent1),var(--accent2));padding:10px 14px;border-radius:8px;border:none;color:#021;cursor:pointer;font-weight:700}
+    .small{font-size:12px;color:var(--muted)}
+    /* popup */
+    .popup{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:9999}
+    .popup-box{width:90%;max-width:420px;background:rgba(20,20,28,0.95);padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 10px 40px rgba(0,0,0,0.6);text-align:center}
+    .popup .btn{margin-top:12px}
+    /* responsive */
+    @media(max-width:980px){.grid{grid-template-columns:1fr}.right{order:-1}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="grid">
+    <!-- LEFT: main -->
+    <div>
+      <div class="card terminal-wrap">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <h1>● — interactive terminal</h1>
+            <div class="muted">Type commands → <span class="small">help</span> for list</div>
+          </div>
+          <div class="small muted">Version 1.0</div>
+        </div>
+
+        <div id="terminal" class="terminal" aria-live="polite">
+          <div class="log" id="log">
+            [--:--:--] initialising environment...
+          </div>
+        </div>
+
+        <div class="input-row">
+          <input id="cmd" class="cmd-input" placeholder="مثال: help — node.status — node.restart worker-2 — gen.token" autocomplete="off" />
+          <button id="sendCmd" class="cmd-btn">Send</button>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:6px">
+          <button id="clearBtn" class="cmd-btn" style="background:#4a4a4a">Clear</button>
+          <button id="helpBtn" class="cmd-btn" style="background:linear-gradient(90deg,#2233ff,#00ccd8)">Help</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <strong>Projects (high-level)</strong>
+        <div class="muted" style="margin-top:8px">
+          • PhantomRelay — multi-hop relay (internal)<br>
+          • EchoCore — async event engine (private)<br>
+          • SpecterUI — experimental terminal interface
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: sidebar -->
+    <aside class="right">
+      <div class="card profile">
+        <!-- developer-provided file path as image source -->
+        <img src="profile_image.png" alt="profile" class="pfp"> <!-- تغییر مسیر به تصویر دلخواه -->
+        <div style="margin-top:10px">
+          <div style="font-weight:700"> ID: A-17</div>
+          <div class="muted">Privilege: Administrator</div>
+          <div class="muted" style="margin-top:6px"><span id="lastAct">just now</span></div>
+        </div>
+        <div style="margin-top:14px">
+          <a id="tgLink" href="https://t.me/Franciszw" target="_blank" class="cmd-btn" style="display:inline-block;text-decoration:none">Request Access</a>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <strong>Active Nodes</strong>
+        <div class="nodes" id="nodesList" style="margin-top:8px">
+          <div class="node"><div>API Gateway</div><div><span class="status-dot s-standby" id="dot1"></span><span class="muted" id="n1">standby</span></div></div>
+          <div class="node"><div>Hash Worker</div><div><span class="status-dot s-running" id="dot2"></span><span class="muted" id="n2">running</span></div></div>
+          <div class="node"><div>Phantom Relay</div><div><span class="status-dot s-standby" id="dot3"></span><span class="muted" id="n3">standby</span></div></div>
+          <div class="node"><div>Log Archive</div><div><span class="status-dot s-sync" id="dot4"></span><span class="muted" id="n4">sync</span></div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <strong>System Load</strong>
+        <div style="margin-top:8px" class="muted">CPU: <span id="cpuText">--</span></div>
+        <div class="meter" style="margin-top:6px"><i id="cpuBar" style="width:10%"></i></div>
+        <div style="height:8px"></div>
+        <div style="margin-top:4px" class="muted">RAM: <span id="ramText">--</span></div>
+        <div class="meter" style="margin-top:6px"><i id="ramBar" style="width:8%"></i></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- popup (for friendly responses) -->
+<div id="popup" class="popup" role="dialog" aria-modal="true">
+  <div class="popup-box">
+    <div id="popupMsg">Request sent — opening Telegram.</div>
+    <button id="closePopup" class="cmd-btn">Close</button>
+  </div>
+</div>
+
+<script>
+/* ---------- Utilities ---------- */
+function nowTs(){ return new Date().toLocaleTimeString(); }
+function pushLogLine(txt){
+  const log = document.getElementById('log');
+  log.textContent += '\\n['+nowTs()+'] ' + txt;
+  const term = document.getElementById('terminal');
+  term.scrollTop = term.scrollHeight;
+}
+
+/* ---------- Auto logs (background realistic stream) ---------- */
+const autoExtras = [
+  'Worker#2 heartbeat OK',
+  'RelayManager latency nominal (42ms)',
+  'Archive sync chunk 23/120 uploaded',
+  'WARN: Relay queue depth above expected',
+  'OK: Snapshot saved to /var/backups/idx',
+  'DEBUG: hash cycle completed in 34ms',
+  'ERROR: Worker#4 failed to respond, retrying'
+];
+setInterval(()=>{
+  if(Math.random() < 0.55) pushLogLine(autoExtras[Math.floor(Math.random()*autoExtras.length)]);
+}, 2500);
+
+/* ---------- System load (gentle realistic) ---------- */
+let cpuBase = 36, ramBase = 48;
+function drift(){
+  cpuBase += (Math.random()*6 - 3);
+  ramBase += (Math.random()*6 - 3);
+  cpuBase = Math.max(12, Math.min(88, cpuBase));
+  ramBase = Math.max(20, Math.min(92, ramBase));
+  const cpu = Math.round(cpuBase + Math.random()*4 -2);
+  const ram = Math.round(ramBase + Math.random()*4 -2);
+  document.getElementById('cpuText').textContent = cpu + '%';
+  document.getElementById('ramText').textContent = ram + '%';
+  document.getElementById('cpuBar').style.width = Math.max(4,cpu) + '%';
+  document.getElementById('ramBar').style.width = Math.max(4,ram) + '%';
+}
+setInterval(drift, 2200);
+drift();
+
+/* ---------- Nodes dynamic ---------- */
+const nodeEls = [
+  { name: 'API Gateway', el: document.getElementById('n1'), dot: document.getElementById('dot1'), states:['standby','online','degraded']},
+  { name: 'Hash Worker', el: document.getElementById('n2'), dot: document.getElementById('dot2'), states:['running','degraded','maintenance']},
+  { name: 'Phantom Relay', el: document.getElementById('n3'), dot: document.getElementById('dot3'), states:['standby','online','sync']},
+  { name: 'Log Archive', el: document.getElementById('n4'), dot: document.getElementById('dot4'), states:['sync','archiving','online']}
+];
+function setDotClass(dot, state){
+  dot.classList.remove('s-online','s-running','s-standby','s-sync');
+  if(state==='online') dot.classList.add('s-online');
+  else if(state==='running') dot.classList.add('s-running');
+  else if(state==='sync' || state==='archiving') dot.classList.add('s-sync');
+  else dot.classList.add('s-standby');
+}
+setInterval(()=>{
+  nodeEls.forEach((n,i)=>{
+    if(Math.random() < 0.12){
+      const st = n.states[Math.floor(Math.random()*n.states.length)];
+      n.el.textContent = st;
+      setDotClass(n.dot, st);
+      pushLogLine('Node update: ' + n.name + ' -> ' + st);
+    }
+  });
+}, 3800);
+
+/* ---------- Interactive terminal (command parser) ---------- */
+const cmdInput = document.getElementById('cmd');
+const sendBtn = document.getElementById('sendCmd');
+const clearBtn = document.getElementById('clearBtn');
+const helpBtn = document.getElementById('helpBtn');
+const popup = document.getElementById('popup');
+const closePopup = document.getElementById('closePopup');
+
+function respond(text){
+  pushLogLine(text);
+}
+
+function generateToken(){
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let t='';
+  for(let i=0;i<28;i++) t += chars[Math.floor(Math.random()*chars.length)];
+  return t;
+}
+
+function handleCommand(raw){
+  const s = raw.trim();
+  if(!s) return;
+  const parts = s.split(/\s+/);
+  const cmd = parts[0].toLowerCase();
+
+  // built-in commands
+  if(cmd === 'help'){
+    respond('Available commands: help, node.status, show.nodes, node.restart <worker>, gen.token, clear, ping <host>');
+    return;
+  }
+  if(cmd === 'clear'){
+    document.getElementById('log').textContent = '['+nowTs()+'] terminal cleared.';
+    return;
+  }
+  if(cmd === 'node.status'){
+    respond('Node status: 4 workers active — All systems nominal (minor warnings: relay latency).');
+    return;
+  }
+  if(cmd === 'show.nodes'){
+    nodeEls.forEach(n => respond(n.name + ' — ' + n.el.textContent));
+    return;
+  }
+  if(cmd === 'gen.token' || cmd === 'gen.token()' || cmd === 'token'){
+    const t = generateToken();
+    respond('Generated token: ' + t);
+    respond('Note: token is ephemeral (simulation).');
+    return;
+  }
+  if(cmd === 'node.restart'){
+    if(parts.length < 2){
+      respond('Usage: node.restart <worker-name|worker-id>');
+      return;
+    }
+    const target = parts.slice(1).join(' ');
+    respond('Initiating restart -> ' + target + ' ...');
+    setTimeout(()=>{ respond(target + ' restarted successfully.'); }, 1400);
+    return;
+  }
+  if(cmd === 'ping'){
+    const host = parts[1] || '127.0.0.1';
+    respond('PING ' + host + ' ...');
+    setTimeout(()=>{ respond('Reply from ' + host + ': time=' + (Math.floor(Math.random()*40)+12) + 'ms'); }, 600);
+    return;
+  }
+
+  // unknown
+  respond('Unknown command: ' + cmd + ' — try `help`.');
+}
+
+sendBtn.addEventListener('click', ()=>{
+  const v = cmdInput.value;
+  handleCommand(v);
+  cmdInput.value = '';
+  cmdInput.focus();
+});
+cmdInput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ sendBtn.click(); e.preventDefault(); }
+});
+clearBtn.addEventListener('click', ()=>{ handleCommand('clear'); });
+helpBtn.addEventListener('click', ()=>{ handleCommand('help'); });
+
+/* ---------- Request Access popup + telegram open ---------- */
+document.getElementById('tgLink').addEventListener('click', (e)=>{
+  // show popup
+  e.preventDefault();
+  popup.style.display = 'flex';
+  // open telegram in a new tab
+  window.open(e.currentTarget.href, '_blank');
+});
+closePopup.addEventListener('click', ()=>{ popup.style.display = 'none'; });
+
+/* ---------- small niceties ---------- */
+setInterval(()=>{ document.getElementById('lastAct').textContent = Math.floor(Math.random()*5) + 'm ago'; }, 90000);
+
+</script>
+</body>
+</html>
