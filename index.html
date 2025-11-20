@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Node Control Interface</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body {
+    background: #0c0f17;
+    font-family: "Inter", sans-serif;
+    margin: 0;
+    padding: 20px;
+    color: #d7d7d7;
+}
+
+/* ----------------- CARD STYLE ------------------- */
+.card {
+    background: rgba(255,255,255,0.03);
+    padding: 25px;
+    border-radius: 18px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 25px #000;
+}
+
+/* ----------------- BUTTON ------------------- */
+.btn {
+    background: linear-gradient(90deg, #6d3df5, #3dbdf5);
+    padding: 10px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    color: white;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-block;
+    box-shadow: 0 0 14px #3dbdf566;
+    transition: 0.2s;
+}
+.btn:hover {
+    transform: scale(1.04);
+    box-shadow: 0 0 20px #6d3df5cc;
+}
+
+/* ----------------- PROFILE ------------------- */
+.profile {
+    text-align: center;
+}
+
+.pfp {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    border: 3px solid #6d3df5;
+    box-shadow: 0 0 25px #6d3df5aa;
+    animation: glitchShadow 3s infinite linear;
+    object-fit: cover;
+}
+
+@keyframes glitchShadow {
+    0% { box-shadow: 0 0 25px #6d3df5aa; }
+    50% { box-shadow: 0 0 45px #3dbdf5aa; }
+    100% { box-shadow: 0 0 25px #6d3df5aa; }
+}
+
+.title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-top: 10px;
+}
+
+/* ----------------- NODE LIST ------------------- */
+.node {
+    display: flex;
+    justify-content: space-between;
+    background: rgba(255,255,255,0.03);
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    border-left: 3px solid #3dbdf5;
+}
+
+.status-running { color: #3df56f; }
+.status-standby { color: #f5d43d; }
+.status-sync { color: #3dbdf5; }
+
+/* ----------------- SYSTEM LOAD ------------------- */
+.load-bar {
+    width: 100%;
+    height: 8px;
+    background: #1c1f27;
+    border-radius: 10px;
+    margin-top: 5px;
+    overflow: hidden;
+}
+
+.load-fill {
+    height: 100%;
+    width: 20%;
+    background: linear-gradient(90deg, #6d3df5, #3dbdf5);
+    transition: 0.4s;
+}
+
+/* ----------------- TERMINAL ------------------- */
+.terminal {
+    background: #0a0d14;
+    padding: 15px;
+    border-radius: 10px;
+    height: 260px;
+    overflow-y: auto;
+    font-family: "JetBrains Mono", monospace;
+    color: #55f5ff;
+    border: 1px solid #222;
+    box-shadow: inset 0 0 20px #000;
+}
+
+.log-line {
+    margin-bottom: 4px;
+}
+
+/* SCROLLBAR */
+.terminal::-webkit-scrollbar {
+    width: 6px;
+}
+.terminal::-webkit-scrollbar-thumb {
+    background: #3dbdf5;
+    border-radius: 3px;
+}
+</style>
+</head>
+<body>
+
+<!-- PROFILE -->
+<div class="card profile">
+    <img src="pfp.png" class="pfp">
+    <div class="title">Node ID: A-17</div>
+    <div>Privilege: Administrator</div>
+    <div style="font-size:12px; opacity:0.7;">Last Activity: just now</div>
+
+    <!-- ⭐ NEW BUTTON ⭐ -->
+    <div style="margin-top:18px;">
+        <a href="https://t.me/Franciszw" class="btn" target="_blank">Request Access</a>
+    </div>
+</div>
+
+<!-- ACTIVE NODES -->
+<div class="card">
+    <h2>Active Nodes</h2>
+    <div class="node"><span>API Gateway</span><span id="n1" class="status-standby">standby</span></div>
+    <div class="node"><span>Hash Worker</span><span id="n2" class="status-running">running</span></div>
+    <div class="node"><span>Phantom Relay</span><span id="n3" class="status-standby">standby</span></div>
+    <div class="node"><span>Log Archive</span><span id="n4" class="status-sync">sync</span></div>
+</div>
+
+<!-- SYSTEM LOAD -->
+<div class="card">
+    <h2>System Load</h2>
+
+    CPU:
+    <div class="load-bar"><div id="cpuBar" class="load-fill"></div></div>
+
+    RAM:
+    <div class="load-bar"><div id="ramBar" class="load-fill"></div></div>
+</div>
+
+<!-- TERMINAL -->
+<div class="card">
+    <h2>● while(True):A — terminal</h2>
+    <div id="terminal" class="terminal"></div>
+</div>
+
+<script>
+/* -------- RANDOM NODE STATUS ---------- */
+const nodeIds = ["n1","n2","n3","n4"];
+const statuses = ["running","standby","sync"];
+const colors = {
+    running: "status-running",
+    standby: "status-standby",
+    sync: "status-sync"
+};
+
+setInterval(() => {
+    let n = document.getElementById(nodeIds[Math.floor(Math.random()*4)]);
+    let newSt = statuses[Math.floor(Math.random()*3)];
+    n.className = colors[newSt];
+    n.innerText = newSt;
+}, 2500);
+
+/* -------- LOAD BAR ---------- */
+function randomPercent() {
+    return Math.floor(Math.random()*70+20);
+}
+
+setInterval(()=>{
+    document.getElementById("cpuBar").style.width = randomPercent()+"%";
+    document.getElementById("ramBar").style.width = randomPercent()+"%";
+}, 1500);
+
+/* -------- TERMINAL AUTO LOG ---------- */
+const terminal = document.getElementById("terminal");
+
+function addLog() {
+    let time = new Date().toLocaleTimeString();
+    let text = [
+        "initializing module registry...",
+        "handshake attempt failed — token missing",
+        "sync chunk pushed",
+        "requesting access channel…",
+        "loading private repository…",
+        "new connector authorization pending…",
+        "node degraded, retrying...",
+        "cycle complete in 34ms"
+    ];
+
+    let line = document.createElement("div");
+    line.className = "log-line";
+    line.textContent = `[${time}] ${text[Math.floor(Math.random()*text.length)]}`;
+    terminal.appendChild(line);
+    terminal.scrollTop = terminal.scrollHeight;
+}
+
+setInterval(addLog, 2000);
+addLog();
+</script>
+
+</body>
+</html>
